@@ -1,0 +1,71 @@
+schema od the document of the system is as below. 
+The status field indicates whether the car is available(1) or not(0).
+
+GET on /cars should json of all documents which are available for renting. 
+
+POST on/cars/:carid/reserve accepts the name, 
+license of the driver and set the start mileage by reading the end mileage of
+the last record of rantalDetails of the car. set the end mileage to null for now.
+
+DELETE on /cars/:carid/cancel/reservationId - removes the reservation. 
+
+Finally create a mongodb by db name: usa and collection: 
+cars - just to run the code as it is.
+
+{
+        "_id" : 1,
+        "model" : "Toyota",
+        "status" : 0,
+        "rentalDetails" : [
+                {
+                        "reservation_id" : 1002,
+                        "driverName" : "Mark",
+                        "license" : "AD110",
+                        "startMileage" : 100,
+                        "endMileage" : 150
+                },
+                {
+                        "reservation_id" : 1003,
+                        "driverName" : "Smith",
+                        "license" : "AD111",
+                        "startMileage" : 153,
+                        "endMileage" : 200
+                }
+        ],
+        "ratePerDay" : 55
+}
+
+db.cars.aggregate([
+	{$unwind:"$rentalDetails"},
+	{$match:{"$license":"AD110"}}
+])
+//1
+//a
+db.cars.find({_id: 1});
+//b 
+db.cars.aggregate([ {$unwind:"$rentalDetails"}, {$sort:{"rentalDetails.reservation_id":-1}},{$limit:1}])
+//c
+db.cars.aggregate([ {$unwind:"$rentalDetails"}, {$sort:{"rentalDetails.reservation_id":-1}},{$limit:1},{$project:{"endMile":"$rentalDetails.endMileage","_id":0}}])
+//2
+db.cars.aggregate([ {$unwind:"$rentalDetails"}, 
+
+{$match:{"rentalDetails.license":"AD110", "rentalDetails.reservation_id":{$ne:1002}}},
+{$group:{_id:"$rentalDetails.license", "n":{$sum:1}}}]);
+//3
+db.cars.find({"rentalDetails.reservation_id" :{ $eq : 1007}}, {"ratePerDay":1});
+
+
+//4
+db.cars.updateOne({_id:1},
+ {$push:{ rentalDetails: { "reservation_id" : 1007,
+                        "driverName" : "Mark",
+                        "license" : "AD110",
+                       "startMileage" : 200,
+                        "endMileage" : 300
+			}
+	}
+});
+//5
+db.cars.update({"rentalDetails.reservation_id": 1007}, {$set:{"rentalDetails.$.endMileage": 400}});
+//6
+db.cars.update({_id:1,"rentalDetails.reservation_id":1007}, {$pull:{rentalDetails: {"reservation_id":1007}}});
